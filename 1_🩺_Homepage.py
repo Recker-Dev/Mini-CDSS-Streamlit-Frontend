@@ -42,7 +42,7 @@ def get_final_reports(thread_id: str) -> str:
 
 # Main Chat Interface
 def main_chat():
-    st.title("Main Chatbot Interface")
+    st.title("Mini-CDSS Chatbot")
     
     # Initialize conversation history and state variables
     if "main_chat_history" not in st.session_state:
@@ -67,7 +67,7 @@ def main_chat():
             "⚕️ **Physical Exam:** Blood pressure **140/90 mmHg**, fundoscopic exam reveals **microaneurysms & cotton wool spots**.\n"
             "📊 **Investigations:** Random blood sugar **350 mg/dl**, HbA1c **10.5%**.\n"
             "💊 **Treatment Plan:** Intravenous fluids, insulin infusion, and electrolyte replacement initiated.\n\n"
-            " If you have any medical documents upload them and click `Extract Medical Details`, then enter `START` to begin and finally enter your patient age, sex, complaints below. \n\n Let’s get started!**"
+            " If you have any medical documents upload them and click `Extract Medical Insights`, then enter `START` to begin and finally enter your patient age, sex, complaints below. \n\n Let’s get started!**"
         
         )
         st.session_state.main_chat_history.append({"role": "assistant", "content": initial_msg})
@@ -235,7 +235,7 @@ def rag_chat():
 
     # If no messages exist, add the initial message from the bot.
     if not st.session_state.rag_chat_history:
-        initial_msg = "I am the RAG bot, for queries on the uploaded documents ask me here."
+        initial_msg = "I am the RAG bot, kindly upload your documents and click on `Create Vector DB` to chat with me about the documents!"
         st.session_state.rag_chat_history.append({"role": "assistant", "content": initial_msg})
     
     
