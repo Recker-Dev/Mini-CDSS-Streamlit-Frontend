@@ -1,0 +1,5 @@
+streamlit
+uuid
+requests
+pillow
+base64
