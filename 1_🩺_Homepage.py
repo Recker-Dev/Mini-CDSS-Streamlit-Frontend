@@ -168,7 +168,7 @@ def main_chat():
                 st.chat_message("assistant").markdown(final_report)
 
                 # Add follow-up message from assistant
-                follow_up_msg = "A comprehensive patient report has been generated! You may clear the medical insights and enter 'START' to retrigger the graph for another patient!"
+                follow_up_msg = "A comprehensive patient report has been generated! You may clear the medical insights by clicking `Clear Previous Medical Insights` and enter 'START' to retrigger the graph for another patient!"
                 st.session_state.main_chat_history.append({"role": "assistant", "content": follow_up_msg})
                 st.chat_message("assistant").markdown(follow_up_msg)
             else:
