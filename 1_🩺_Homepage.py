@@ -67,7 +67,7 @@ def main_chat():
             "⚕️ **Physical Exam:** Blood pressure **140/90 mmHg**, fundoscopic exam reveals **microaneurysms & cotton wool spots**.\n"
             "📊 **Investigations:** Random blood sugar **350 mg/dl**, HbA1c **10.5%**.\n"
             "💊 **Treatment Plan:** Intravenous fluids, insulin infusion, and electrolyte replacement initiated.\n\n"
-            " If you have any medical documents upload them and click `Extract Medical Insights`, then enter `START` to begin and finally enter your patient age, sex, complaints below. \n\n Let’s get started!**"
+            " If you have any medical documents upload them and click `Extract Medical Insights`, then enter `START` to begin and finally enter your patient age, sex, complaints below. \n\n Let’s get started!"
         
         )
         st.session_state.main_chat_history.append({"role": "assistant", "content": initial_msg})
