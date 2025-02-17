@@ -1,82 +1,138 @@
 import streamlit as st
-from PIL import Image
 import requests
-import base64
 import uuid
+from PIL import Image
+import io
 
-FASTAPI_PROCESS_IMAGE_URL = "https://mini-cdss-fastapi.onrender.com/process-image/"
-FASTAPI_PROCESS_IMAGE_ANSWER_URL = "https://mini-cdss-fastapi.onrender.com/process-image-answer/"
+# Define API endpoints
+INPUT_IMAGE_URL = "https://mini-cdss-fastapi.onrender.com/input-image/"
+INPUT_QUERY_URL = "https://mini-cdss-fastapi.onrender.com/input-query/"
+VISION_ANSWER_URL = "https://mini-cdss-fastapi.onrender.com/vision-answer/"
+VISION_FEEDBACK_URL = "https://mini-cdss-fastapi.onrender.com/vision-feedback/"
 
+# Initialize session state variables
+if "thread_id" not in st.session_state:
+    st.session_state.thread_id = str(uuid.uuid4())
+if "conversation_stage" not in st.session_state:
+    st.session_state.conversation_stage = "upload"
+if "coversation_substage" not in st.session_state:
+    st.session_state.coversation_substage = "query"
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "uploaded_image" not in st.session_state:
+    st.session_state.uploaded_image = None
 
-st.title("Try our 👁️ Vision Model!")
+def display_chat():
+    """Display the chat history with image support."""
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"]):
+            if msg["type"] == "image":
+                st.image(msg["content"], caption="Uploaded Image", width=250)
+            else:
+                st.markdown(msg["content"])
 
-if "uploaded_image_file" not in st.session_state:
-    st.session_state.uploaded_image_file = ""
-if "user_query" not in st.session_state:
-    st.session_state.user_query = ""
+st.title("Vision Chatbot")
 
+# ---- Stage 1: Upload Image ----
+if st.session_state.conversation_stage == "upload":
+    st.write("**Step 1:** Upload an image to start.")
+    uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
 
-def process_inputs():
-    uploaded_image_file = st.session_state.uploaded_image_file
-    query = st.session_state.user_query
+    if uploaded_file:
+        # Read image
+        image = Image.open(uploaded_file)
+        st.session_state.uploaded_image = image  # Store image in session state
 
-    if not uploaded_image_file:
-        st.error("Please upload an image.")
-        return
-    if not query:
-        st.error("Please enter a query.")
-        return
+        # Convert image to bytes for API request
+        img_bytes = io.BytesIO()
+        image.save(img_bytes, format="PNG")
+        img_bytes = img_bytes.getvalue()
 
-    # Convert image to Base64
-    image_bytes = uploaded_image_file.getvalue()
-    base64_encoded_image = base64.b64encode(image_bytes).decode("utf-8")
+        # Send image to API
+        files = {"image": (uploaded_file.name, img_bytes, uploaded_file.type)}
+        data = {"thread_id": st.session_state.thread_id}
+        with st.spinner("Uploading image..."):
+            response = requests.post(INPUT_IMAGE_URL, data=data, files=files)
 
-    if "thread_id" in st.session_state:
-        thread_id = st.session_state.thread_id
-    else:
-        thread_id = str(uuid.uuid4())
+        if response.status_code == 200:
+            # Add image to chat history
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "type": "image",
+                "content": st.session_state.uploaded_image
+            })
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "type": "text",
+                "content": "Image uploaded successfully. Enter your query now."
+            })
 
-    # Prepare form data
-    data = {"query": query, "thread_id": thread_id}
-    files = {"image": (uploaded_image_file.name, image_bytes, uploaded_image_file.type)}
+            st.session_state.conversation_stage = "chatting"
+            st.rerun()
 
-    # Send the image & query to FastAPI
-    with st.spinner("Processing image..."):
-        response = requests.post(FASTAPI_PROCESS_IMAGE_URL, data=data, files=files)
-
-    if response.status_code == 200:
-        st.success("Graph triggered! Fetching the answer...")
-
-        # Fetch the result from FastAPI
-        with st.spinner("Retrieving answer..."):
-            answer_response = requests.post(FASTAPI_PROCESS_IMAGE_ANSWER_URL, data={"thread_id": thread_id})
-
-        if answer_response.status_code == 200:
-            answer = answer_response.text.strip()
-            st.session_state.image_processing_answer = answer
-            st.markdown(f"{answer}")
-        else:
-            st.error(f"Error fetching answer: {answer_response.text}")
-
-    else:
-        st.error(f"Error triggering process: {response.text}")
-
-
-
-
-# Upload file
-uploaded_image_file = st.file_uploader("Choose a medical image...", type=["png", "jpg", "jpeg"])
-
-# Display image if uploaded
-if uploaded_image_file is not None:
-    st.session_state.uploaded_image_file = uploaded_image_file
-    image = Image.open(uploaded_image_file)
-    st.image(image, caption="Uploaded Image", use_container_width=True)
-
-
-user_query=st.text_input("Enter your medical query here...")
-
-if st.button(label="Submit Query", type="primary"):
-    st.session_state.user_query = user_query
-    process_inputs()
+# ---- Stage 2: Query Chat ----
+elif st.session_state.conversation_stage == "chatting":
+    display_chat()
     
+    user_query = st.chat_input("Enter your query")
+    if user_query:
+
+        # ---- Stage 3: Reset Chat if needed ----
+        if user_query.lower().strip() == "reset":
+            # Reset session state
+            st.session_state.chat_history = []  # Clear chat history
+            st.session_state.conversation_stage = "upload"  # Reset stage
+            st.session_state.coversation_substage=="query"
+            st.session_state.uploaded_image = None  # Remove image
+            st.rerun()  # Refresh UI
+
+        if st.session_state.coversation_substage=="query":
+            st.session_state.chat_history.append({"role": "user", "type": "text", "content": user_query})
+
+            # Send query to API
+            data = {"thread_id": st.session_state.thread_id, "query": user_query}
+            with st.spinner("Processing query..."):
+                response = requests.post(INPUT_QUERY_URL, json=data)
+
+            if response.status_code == 200:
+                # Fetch answer from API
+                answer_response = requests.post(VISION_ANSWER_URL, json={"thread_id": st.session_state.thread_id})
+
+                if answer_response.status_code == 200:
+                    answer = answer_response.text
+                    st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": answer})
+                    st.session_state.coversation_substage="feedback"
+                else:
+                    st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": "Failed to retrieve answer."})
+            else:
+                st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": "Error processing query."})
+
+            st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": "Enter any further feedback (if any) or enter `reset` to reset the chat."})
+            st.rerun()
+            
+        
+        if st.session_state.coversation_substage=="feedback":
+            st.session_state.chat_history.append({"role": "user", "type": "text", "content": user_query})
+
+            # Send query to API
+            data = {"thread_id": st.session_state.thread_id, "feedback": user_query}
+            with st.spinner("Processing query..."):
+                response = requests.post(VISION_FEEDBACK_URL, json=data)
+
+            if response.status_code == 200:
+                # Fetch answer from API
+                answer_response = requests.post(VISION_ANSWER_URL, json={"thread_id": st.session_state.thread_id})
+
+                if answer_response.status_code == 200:
+                    answer = answer_response.text
+                    st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": answer})
+                else:
+                    st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": "Failed to retrieve answer."})
+            else:
+                st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": "Error processing query."})
+
+            st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": "Enter any further feedback (if any) or enter `reset` to reset the chat."})
+            st.rerun()
+
+
+
